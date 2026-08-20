@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse
@@ -40,3 +41,28 @@ def latest(site: str, product: str, request: Request):
     matches = [x for x in request.app.state.metadata.list(500, 0, "decoded") if x.get("radar_site") == site and x.get("product_code") == product]
     if not matches: raise HTTPException(404, "No decoded product found")
     return RadarFile.model_validate(matches[0])
+
+def _live_status(site: str, product: str, request: Request) -> dict:
+    settings = request.app.state.settings; site, product = site.upper(), product
+    stored = request.app.state.metadata.get_live_status(site, product)
+    if not settings.live_radar_enabled and not stored:
+        return {"site": site, "product": product, "status": "disabled", "source": settings.live_radar_source, "last_poll": None, "latest_scan": None, "age_seconds": None, "frame_count_60m": 0, "consecutive_failures": 0, "last_error": None}
+    stored = stored or {}; latest_scan = stored.get("latest_scan"); age = None; state = stored.get("status", "offline")
+    if latest_scan:
+        try:
+            age = max(0.0, (datetime.now(timezone.utc) - datetime.fromisoformat(latest_scan)).total_seconds())
+            if age > settings.live_radar_stale_minutes * 60: state = "stale"
+        except ValueError: state = "error"
+    since = datetime.now(timezone.utc) - timedelta(minutes=settings.live_radar_hot_retention_minutes)
+    count = len(request.app.state.metadata.list_frames(site, product, since, settings.live_radar_max_frames))
+    return {"site": site, "product": product, "status": state, "source": stored.get("source", settings.live_radar_source), "last_poll": stored.get("last_poll"), "last_discovery": stored.get("last_discovery"), "latest_scan": latest_scan, "age_seconds": age, "frame_count_60m": count, "consecutive_failures": stored.get("consecutive_failures", 0), "last_error": stored.get("last_error")}
+
+@router.get("/radar/{site}/{product}/status")
+def live_status(site: str, product: str, request: Request):
+    return _live_status(site, product, request)
+
+@router.get("/radar/{site}/{product}/frames")
+def frames(site: str, product: str, request: Request, minutes: int = Query(30, ge=1, le=60), limit: int = Query(30, ge=1, le=100)):
+    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    rows = request.app.state.metadata.list_frames(site.upper(), product, since, min(limit, request.app.state.settings.live_radar_max_frames))
+    return {"site": site.upper(), "product": product, "minutes": minutes, "order": "oldest_to_newest", "frames": [{"file_id": row["id"], "scan_time": row["scan_time"], "file_size": row["file_size"], "decoded_size": row.get("decoded_size"), "decode_status": row["decode_status"]} for row in rows]}
