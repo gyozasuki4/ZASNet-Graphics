@@ -7,6 +7,7 @@ const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, '..');
 const read = relativePath => fs.readFileSync(resolve(repoRoot, relativePath), 'utf8');
 const config = JSON.parse(read('client/src-tauri/tauri.conf.json'));
+const capability = JSON.parse(read('client/src-tauri/capabilities/default.json'));
 const bundle = config.bundle ?? {};
 if (bundle.category !== 'Graphics and Design') {
   console.error(`Invalid Tauri bundle category: ${bundle.category}`);
@@ -14,6 +15,12 @@ if (bundle.category !== 'Graphics and Design') {
 }
 if (config.identifier !== 'com.zasnetwx.broadcast') {
   console.error(`Unexpected Tauri bundle identifier: ${config.identifier}`);
+  process.exit(1);
+}
+const httpCapability = (capability.permissions ?? []).find(permission => typeof permission === 'object' && permission.identifier === 'http:default');
+const httpUrls = (httpCapability?.allow ?? []).map(entry => entry.url);
+if (!httpCapability || !httpUrls.includes('http://**') || !httpUrls.includes('https://**')) {
+  console.error('Tauri HTTP capability must allow configurable http:// and https:// backend URLs');
   process.exit(1);
 }
 const packageVersion = JSON.parse(read('client/package.json')).version;
