@@ -19,8 +19,8 @@ if (config.identifier !== 'com.zasnetwx.broadcast') {
 }
 const httpCapability = (capability.permissions ?? []).find(permission => typeof permission === 'object' && permission.identifier === 'http:default');
 const httpUrls = (httpCapability?.allow ?? []).map(entry => entry.url);
-if (!httpCapability || !httpUrls.includes('http://**') || !httpUrls.includes('https://**')) {
-  console.error('Tauri HTTP capability must allow configurable http:// and https:// backend URLs');
+if (!httpCapability || !httpUrls.includes('http://10.10.3.133:8080/**')) {
+  console.error('Tauri HTTP capability must allow http://10.10.3.133:8080/**');
   process.exit(1);
 }
 const packageVersion = JSON.parse(read('client/package.json')).version;
