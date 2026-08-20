@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import { destination } from '../src/radar/geometry';
+describe('radar geodesic geometry',()=>{const origin:[number,number]=[-97.278,35.333];it('zero range preserves origin',()=>{expect(destination(origin[1],origin[0],0,0)[0]).toBeCloseTo(origin[0],5);expect(destination(origin[1],origin[0],0,0)[1]).toBeCloseTo(origin[1],5);});it('cardinal bearings move correctly',()=>{const n=destination(origin[1],origin[0],0,10000),e=destination(origin[1],origin[0],90,10000),s=destination(origin[1],origin[0],180,10000),w=destination(origin[1],origin[0],270,10000);expect(n[1]).toBeGreaterThan(origin[1]);expect(e[0]).toBeGreaterThan(origin[0]);expect(s[1]).toBeLessThan(origin[1]);expect(w[0]).toBeLessThan(origin[0]);});});

@@ -1,0 +1,20 @@
+[Unit]
+Description=ZASNet WX Broadcast Graphics Backend
+After=network.target
+
+[Service]
+Type=simple
+User=zasbroadcast
+Group=zasbroadcast
+WorkingDirectory=/opt/zasnet-broadcast/backend
+EnvironmentFile=-/opt/zasnet-broadcast/config/backend.env
+ExecStart=/opt/zasnet-broadcast/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/zasnet-broadcast/data /opt/zasnet-broadcast/logs
+
+[Install]
+WantedBy=multi-user.target
