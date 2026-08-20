@@ -55,10 +55,31 @@ jobs:
         working-directory: client
       - name: Generate platform icons
         run: npx tauri icon src-tauri/icons/icon.svg
+      - name: Validate generated platform icons
+        run: node ../scripts/check-tauri-config.mjs
+        working-directory: client
       - run: npm test
       - run: npm run build
       - name: Build Tauri bundles
+        if: matrix.platform != 'macos'
         run: npm run tauri build -- --target "${{ matrix.target }}"
+      - name: Build unsigned macOS application
+        if: matrix.platform == 'macos'
+        run: npm run tauri build -- --target "${{ matrix.target }}" --no-sign
+      - name: Sign and package macOS application
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/macos" -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$app"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=4 "$app"
+          codesign -dv --verbose=4 "$app" 2>&1 || true
+          spctl -a -vvv -t execute "$app" || true
+          mkdir -p release-assets
+          version=$(node -p "require('./package.json').version")
+          hdiutil create -volname "ZASNet WX Broadcast Graphics" -srcfolder "$app" -ov -format UDZO "release-assets/ZASNet-WX-Broadcast-${version}-macOS-arm64.dmg"
       - name: Collect Linux artifacts
         if: matrix.platform == 'linux'
         shell: bash
@@ -74,13 +95,6 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $version = node -p "require('./package.json').version"
           Copy-Item (Get-ChildItem src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi | Select-Object -First 1) "release-assets/ZASNet-WX-Broadcast-$version-Windows-x64.msi"
-      - name: Collect macOS artifacts
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          mkdir -p release-assets
-          version=$(node -p "require('./package.json').version")
-          cp src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg release-assets/ZASNet-WX-Broadcast-${version}-macOS-arm64.dmg
       - uses: actions/upload-artifact@v5
         with:
           name: desktop-${{ matrix.platform }}

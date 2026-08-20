@@ -29,3 +29,9 @@ credentials/
 .DS_Store
 .idea/
 .vscode/
+
+# Platform-specific icon generator outputs not consumed by the desktop bundles.
+client/src-tauri/icons/android/
+client/src-tauri/icons/ios/
+client/src-tauri/icons/Square*Logo.png
+client/src-tauri/icons/StoreLogo.png
