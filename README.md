@@ -30,7 +30,7 @@ The backend URL is configured in the client UI and persisted locally. The develo
 
 ## Releases
 
-Versions are semantic and currently use `0.3.5` as the source version in `client/package.json`, Tauri configuration, and Cargo metadata. After updating all three and running `node scripts/check-version.mjs`, push a tag:
+Versions are semantic and currently use `0.4.0` as the source version in `client/package.json`, Tauri configuration, and Cargo metadata. After updating all three and running `node scripts/check-version.mjs`, push a tag:
 
 ```bash
 git tag v0.3.6
