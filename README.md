@@ -7,8 +7,9 @@ ZASNet WX Broadcast Graphics is a cross-platform broadcast-weather graphics plat
 - Backend: FastAPI, SQLite metadata, NEXRAD Level III ingest/MetPy decoding, native dBZ and geometry persistence.
 - Client: Tauri 2, React, TypeScript, MapLibre GL JS, WebGL 2 custom radar layer, client-side `.l3z` decoding, palettes, smoothing modes, opacity, and fullscreen prototype.
 - Step 3.5: GitHub Actions CI and tag-driven cross-platform installer automation.
+- Step 4: configurable KRIW product 94 live polling worker, status/frame APIs, and client radar looping.
 
-The current radar proof supports base reflectivity, including Level III product 94. Live acquisition, animation, warnings, other datasets, and broadcast output integrations are not implemented yet.
+The current radar proof supports base reflectivity, including Level III product 94. Live acquisition is limited to the NWS RPCCDS KRIW feed and is explicitly disabled by default in configuration. Warnings, additional datasets, and broadcast output integrations are not implemented yet.
 
 ## Repository layout
 

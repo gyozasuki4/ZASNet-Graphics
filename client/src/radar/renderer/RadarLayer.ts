@@ -23,7 +23,8 @@ export class RadarLayer implements CustomLayerInterface {
     if (!webgl.getProgramParameter(this.program, webgl.LINK_STATUS)) throw new Error('program link failed');
     this.texture = webgl.createTexture()!; this.uploadPalette(); if (this.decoded && this.metadata) this.uploadGeometry();
   }
-  setData(decoded: DecodedL3, metadata: RadarMetadata) { this.decoded = decoded; this.metadata = metadata; if (this.gl) this.uploadGeometry(); }
+  private geometryKey?: string;
+  setData(decoded: DecodedL3, metadata: RadarMetadata) { const key = JSON.stringify([decoded.header.radial_count, decoded.header.gate_count, decoded.header.radials]); const reusable = key === this.geometryKey; this.decoded = decoded; this.metadata = metadata; if (this.gl) reusable ? this.uploadValues() : this.uploadGeometry(); this.geometryKey = key; }
   setPalette(palette: Palette) { this.palette = palette; if (this.gl) this.uploadPalette(); }
   setOpacity(value: number) { this.opacity = value; }
   setVisible(value: boolean) { this.visible = value; }
@@ -40,6 +41,7 @@ export class RadarLayer implements CustomLayerInterface {
     }
     this.count = values.length; this.position = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, this.position); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW); this.value = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, this.value); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(values), gl.STATIC_DRAW); this.state = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, this.state); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(states), gl.STATIC_DRAW);
   }
+  private uploadValues() { const gl=this.gl, decoded=this.decoded; if (!gl || !decoded || !this.value || !this.state) return; const values:number[]=[]; const states:number[]=[]; for(let r=0;r<decoded.header.radial_count;r++) for(let g=0;g<decoded.header.gate_count;g++){ const v=decoded.values[r*decoded.header.gate_count+g],s=decoded.states[r*decoded.header.gate_count+g]; for(let i=0;i<6;i++){values.push(v);states.push(s);} } gl.bindBuffer(gl.ARRAY_BUFFER,this.value); gl.bufferSubData(gl.ARRAY_BUFFER,0,new Float32Array(values)); gl.bindBuffer(gl.ARRAY_BUFFER,this.state); gl.bufferSubData(gl.ARRAY_BUFFER,0,new Float32Array(states)); }
   render(gl: WebGLRenderingContext, options: CustomRenderMethodInput) {
     const g = gl as WebGL2RenderingContext; if (!this.visible || !this.program || !this.position || !this.value || !this.state || !this.texture) return; g.useProgram(this.program);
     const bind = (buffer: WebGLBuffer, name: string, size: number) => { g.bindBuffer(g.ARRAY_BUFFER, buffer); const location = g.getAttribLocation(this.program!, name); g.enableVertexAttribArray(location); g.vertexAttribPointer(location, size, g.FLOAT, false, 0, 0); };
