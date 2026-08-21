@@ -6,7 +6,8 @@ export function thumbnailDescriptor(scene: Scene) {
 
 export function SceneThumbnail({ scene }: { scene: Scene }) {
   const objects = [...scene.objects].filter(object => object.visible && object.type !== 'group').sort((a, b) => a.z - b.z).slice(0, 12);
-  return <div className="scene-thumbnail" aria-label={`${scene.name} thumbnail`} style={{ background: scene.background }}>{objects.map(object => <ThumbnailObject key={object.id} object={object} scene={scene} />)}</div>;
+  const background = typeof scene.background === 'string' ? scene.background : scene.background.type === 'solid' ? scene.background.color : scene.background.type === 'gradient' ? scene.background.from : 'transparent';
+  return <div className="scene-thumbnail" aria-label={`${scene.name} thumbnail`} style={{ background }}>{objects.map(object => <ThumbnailObject key={object.id} object={object} scene={scene} />)}</div>;
 }
 
 function ThumbnailObject({ object, scene }: { object: SceneObject; scene: Scene }) {

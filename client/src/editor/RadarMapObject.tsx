@@ -14,14 +14,15 @@ import type { MapObjectProperties } from '../scenes/types';
 export interface MapCamera { center: [number, number]; zoom: number; bearing: number; pitch: number; }
 export interface RadarEditorStatus { online: boolean; status: RadarStatus; metadata?: RadarMetadata; frames: number; index: number; playing: boolean; error?: string; }
 export interface RadarMapHandle { togglePlayback(): void; previous(): void; next(): void; seek(position: number): void; fitRadar(): boolean; resetCamera(): void; getCamera(): MapCamera | undefined; }
-interface Props { config: MapObjectProperties; navigation?: boolean; onCameraChange?: (camera: MapCamera) => void; onStatus?: (status: RadarEditorStatus) => void; onDiagnostic?: (diagnostics: RadarDiagnostics) => void; }
+interface Props { config: MapObjectProperties; navigation?: boolean; cameraControlled?: boolean; onCameraChange?: (camera: MapCamera) => void; onStatus?: (status: RadarEditorStatus) => void; onDiagnostic?: (diagnostics: RadarDiagnostics) => void; }
 const SITE = 'KRIW', PRODUCT = '94';
 const DEFAULT_CAMERA: MapCamera = { center: [-108.477, 43.066], zoom: 6, bearing: 0, pitch: 0 };
 
-export const RadarMapObject = forwardRef<RadarMapHandle, Props>(function RadarMapObject({ config, navigation = false, onCameraChange, onStatus, onDiagnostic }, ref) {
-  const mapEl = useRef<HTMLDivElement>(null), mapRef = useRef<MlMap | null>(null), layerRef = useRef<RadarLayer | null>(null), cache = useRef(new Map<string, { decoded: DecodedL3; metadata: RadarMetadata }>()), latestData = useRef<{ decoded: DecodedL3; metadata: RadarMetadata } | undefined>(undefined), configRef = useRef(config), cameraCallbackRef = useRef(onCameraChange), diagnosticCallbackRef = useRef(onDiagnostic), suppressMove = useRef(false), stylePresetRef = useRef(config.stylePreset || 'broadcast-gray');
+export const RadarMapObject = forwardRef<RadarMapHandle, Props>(function RadarMapObject({ config, navigation = false, cameraControlled = false, onCameraChange, onStatus, onDiagnostic }, ref) {
+  const mapEl = useRef<HTMLDivElement>(null), mapRef = useRef<MlMap | null>(null), layerRef = useRef<RadarLayer | null>(null), cache = useRef(new Map<string, { decoded: DecodedL3; metadata: RadarMetadata }>()), latestData = useRef<{ decoded: DecodedL3; metadata: RadarMetadata } | undefined>(undefined), configRef = useRef(config), cameraCallbackRef = useRef(onCameraChange), diagnosticCallbackRef = useRef(onDiagnostic), suppressMove = useRef(false), cameraControlledRef = useRef(cameraControlled), stylePresetRef = useRef(config.stylePreset || 'broadcast-gray');
   cameraCallbackRef.current = onCameraChange;
   diagnosticCallbackRef.current = onDiagnostic;
+  cameraControlledRef.current = cameraControlled;
   const [frames, setFrames] = useState<RadarFrame[]>([]), [index, setIndex] = useState(0), [metadata, setMetadata] = useState<RadarMetadata>(), [status, setStatus] = useState<RadarStatus>({ site: SITE, product: PRODUCT, status: 'offline', latest_scan: null, age_seconds: null, frame_count_60m: 0 }), [online, setOnline] = useState(false), [error, setError] = useState(''), [minutes, setMinutes] = useState(Number(config.loopMinutes || 30)), [speed, setSpeed] = useState<PlaybackSpeed>((config.playbackSpeed || 1) as PlaybackSpeed), [playing, setPlaying] = useState(true);
   configRef.current = config;
   const palette = PALETTES.find(item => item.name === config.palette) || PALETTES[0];
@@ -42,7 +43,7 @@ export const RadarMapObject = forwardRef<RadarMapHandle, Props>(function RadarMa
     if (!mapEl.current) return;
     const map = createMap(mapEl.current, configRef.current.stylePreset || 'broadcast-gray'); mapRef.current = map;
     const layer = new RadarLayer(palette, diagnostics => diagnosticCallbackRef.current?.(diagnostics)); layerRef.current = layer;
-    const handleMove = () => { if (!suppressMove.current) { const camera = readCamera(); if (camera) cameraCallbackRef.current?.(camera); } };
+    const handleMove = () => { if (!suppressMove.current && !cameraControlledRef.current) { const camera = readCamera(); if (camera) cameraCallbackRef.current?.(camera); } };
     map.on('move', handleMove);
     map.on('load', () => { map.addLayer(layer); const c = configRef.current; map.jumpTo({ center: c.center || DEFAULT_CAMERA.center, zoom: c.zoom || DEFAULT_CAMERA.zoom, bearing: c.bearing || 0, pitch: c.pitch || 0 }); if (latestData.current) layer.setData(latestData.current.decoded, latestData.current.metadata); applyNavigation(); applyMapLayers(map); });
     const observer = new ResizeObserver(() => resizeMapPreservingCamera(map)); observer.observe(mapEl.current);

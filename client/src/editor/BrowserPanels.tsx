@@ -7,6 +7,7 @@ const products: Array<{ type: SceneObjectType; title: string; category: string; 
   { type: 'map', title: 'Radar Map', category: 'WEATHER', icon: '◉', enabled: true },
   { type: 'map', title: 'Map', category: 'WEATHER', icon: '▧', enabled: true },
   { type: 'text', title: 'Text', category: 'GRAPHICS', icon: 'T', enabled: true },
+  { type: 'banner', title: 'Header Banner', category: 'GRAPHICS', icon: '▰', enabled: true },
   { type: 'image', title: 'Image', category: 'GRAPHICS', icon: '▤', enabled: true },
   { type: 'shape', title: 'Shape', category: 'GRAPHICS', icon: '◇', enabled: true },
   { type: 'map', title: 'Satellite', category: 'PLANNED / DISABLED', icon: '▦', enabled: false },
