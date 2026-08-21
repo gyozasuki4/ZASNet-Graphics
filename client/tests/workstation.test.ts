@@ -34,6 +34,15 @@ describe('Step 5.75 workstation model', () => {
     expect(scene.objects.filter(object => ids.includes(object.id))).toHaveLength(2);
   });
 
+  it('moves and locks group children with the group transform', () => {
+    const first = createSceneObject('text', 100, 120); const second = createSceneObject('shape', 220, 180);
+    let scene: Scene = { ...createScene(), objects: [first, second] };
+    scene = groupObjects(scene, [first.id, second.id]); const group = scene.objects.find(object => object.type === 'group')!;
+    scene = updateObject(scene, group.id, { x: group.x + 40, y: group.y + 20, locked: true });
+    expect(scene.objects.find(object => object.id === first.id)).toMatchObject({ x: 140, y: 140, locked: true });
+    expect(scene.objects.find(object => object.id === second.id)).toMatchObject({ x: 260, y: 200, locked: true });
+  });
+
   it('supports text and shape authoring properties', () => {
     let scene: Scene = emptyScene();
     scene = addObject(scene, 'text');

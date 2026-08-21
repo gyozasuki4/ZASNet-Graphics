@@ -15,7 +15,10 @@ export function evaluateKeyframes(keyframes: Keyframe[], time: number, fallback:
 export function evaluateScene(scene: Scene, time: number): Scene {
   const byObject = new Map<string, AnimationTrack[]>();
   scene.animations.forEach(track => byObject.set(track.objectId, [...(byObject.get(track.objectId) || []), track]));
-  return { ...scene, objects: scene.objects.map(object => evaluateObject(object, byObject.get(object.id) || [], time)) };
+  const evaluated = scene.objects.map(object => evaluateObject(object, byObject.get(object.id) || [], time));
+  const byId = new Map(evaluated.map(object => [object.id, object]));
+  for (const group of evaluated.filter(object => object.type === 'group')) { const base = scene.objects.find(object => object.id === group.id); if (!base) continue; const dx = group.x - base.x, dy = group.y - base.y; for (const childId of (group.properties.children as string[] | undefined) || []) { const child = byId.get(childId); if (child) { child.x += dx; child.y += dy; } } }
+  return { ...scene, objects: evaluated };
 }
 export function evaluateObject(object: SceneObject, tracks: AnimationTrack[], time: number): SceneObject {
   let next = { ...object, properties: { ...object.properties } };
