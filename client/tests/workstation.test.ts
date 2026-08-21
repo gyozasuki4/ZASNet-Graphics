@@ -96,6 +96,15 @@ describe('Step 5.75 workstation model', () => {
     expect(banner.properties.source).toBe('/assets/zasnet-main-banner.png');
   });
 
+  it('persists named map camera views with the scene', () => {
+    const scene = createScene();
+    const map = scene.objects.find(object => object.type === 'map')!;
+    const savedViews = [{ name: 'Wyoming Overview', center: [-108.477, 43.066] as [number, number], zoom: 6, bearing: 0, pitch: 0 }];
+    const next = updateObject(scene, map.id, { properties: { savedViews } });
+    const loaded = deserializeScenes(serializeScenes([next]))[0];
+    expect((loaded.objects.find(object => object.id === map.id)?.properties.savedViews as typeof savedViews)[0].name).toBe('Wyoming Overview');
+  });
+
   it('protects locked transforms while allowing camera/style properties', () => {
     const scene = createScene(); const map = scene.objects.find(object => object.type === 'map')!;
     const moved = updateObjectRespectingLock(scene, map.id, { x: 200, y: 200, width: 400, height: 300, rotation: 12, properties: { zoom: 8, stylePreset: 'classic' } });

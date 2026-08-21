@@ -14,6 +14,7 @@ export interface MapObjectProperties {
   radar: boolean; palette: string; opacity: number;
   site: string; product: string; loopMinutes: number; playbackSpeed: number; endDwell: number;
   stylePreset: string;
+  savedViews?: Array<{ name: string; center: [number, number]; zoom: number; bearing: number; pitch: number }>;
 }
 export interface TextObjectProperties { text: string; fontFamily: string; fontSize: number; fontWeight: number; italic: boolean; align: 'left' | 'center' | 'right'; color: string; outline: string; outlineWidth: number; shadow: boolean; }
 export interface ShapeObjectProperties { fill: string; border: string; borderWidth: number; radius: number; }
