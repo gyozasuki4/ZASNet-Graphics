@@ -6,10 +6,14 @@ export interface MapStylePreset { id: MapStylePresetId; name: string; style: Sty
 function rasterStyle(background: string, saturation: number, opacity: number): StyleSpecification {
   return {
     version: 8,
-    sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
+    sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' }, zasnetStates: { type: 'geojson', data: '/maps/us-states.json' }, zasnetCounties: { type: 'geojson', data: '/maps/us-counties.json' }, zasnetRoads: { type: 'geojson', data: '/maps/roads.geojson' }, zasnetCities: { type: 'geojson', data: '/maps/cities.geojson' } },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': background } },
       { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': saturation, 'raster-contrast': 0.24, 'raster-brightness-min': 0.12, 'raster-brightness-max': 0.58, 'raster-opacity': opacity } },
+      { id: 'county-boundaries', type: 'line', source: 'zasnetCounties', paint: { 'line-color': '#9bb5bd', 'line-width': 1, 'line-opacity': .55 } },
+      { id: 'state-boundaries', type: 'line', source: 'zasnetStates', paint: { 'line-color': '#dcecf0', 'line-width': 2.5, 'line-opacity': .9 } },
+      { id: 'roads', type: 'line', source: 'zasnetRoads', minzoom: 4, paint: { 'line-color': '#d39b61', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, .5, 8, 1.8], 'line-opacity': .6 } },
+      { id: 'city-labels', type: 'symbol', source: 'zasnetCities', minzoom: 4, layout: { 'text-field': ['upcase', ['get', 'name']], 'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 8, 14], 'text-allow-overlap': false }, paint: { 'text-color': '#f2f7f8', 'text-halo-color': '#132027', 'text-halo-width': 1.5, 'text-opacity': .95 } },
     ],
   };
 }
