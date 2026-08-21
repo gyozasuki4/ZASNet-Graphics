@@ -9,7 +9,7 @@ function rasterStyle(background: string, saturation: number, opacity: number): S
     sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } },
     layers: [
       { id: 'background', type: 'background', paint: { 'background-color': background } },
-      { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': saturation, 'raster-contrast': 0.15, 'raster-brightness-min': 0.18, 'raster-brightness-max': 0.72, 'raster-opacity': opacity } },
+      { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': saturation, 'raster-contrast': 0.24, 'raster-brightness-min': 0.12, 'raster-brightness-max': 0.58, 'raster-opacity': opacity } },
     ],
   };
 }

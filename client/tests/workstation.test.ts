@@ -89,6 +89,13 @@ describe('Step 5.75 workstation model', () => {
     expect(secondary).toMatchObject({ x: 120, y: 120, width: 480, height: 240, locked: false });
   });
 
+  it('inserts the supplied header banner in a title-safe broadcast position', () => {
+    const scene: Scene = { ...createScene(), objects: [] };
+    const banner = createInsertedObject(scene, 'banner');
+    expect(banner).toMatchObject({ type: 'banner', x: 250, y: 40, width: 1420, height: 180, role: 'graphics' });
+    expect(banner.properties.source).toBe('/assets/zasnet-main-banner.png');
+  });
+
   it('protects locked transforms while allowing camera/style properties', () => {
     const scene = createScene(); const map = scene.objects.find(object => object.type === 'map')!;
     const moved = updateObjectRespectingLock(scene, map.id, { x: 200, y: 200, width: 400, height: 300, rotation: 12, properties: { zoom: 8, stylePreset: 'classic' } });
