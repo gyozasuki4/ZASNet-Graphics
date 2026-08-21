@@ -1,27 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { Map as MlMap } from 'maplibre-gl';
-import { backendUrl, health, setBackendUrl } from '../api/backend';
+import { health } from '../api/backend';
 import { radarFrames, radarMetadata, radarPayload, radarStatus, type RadarFrame, type RadarStatus } from '../api/radar';
 import { createMap } from '../map/map';
 import { decodeL3Z } from '../radar/l3z';
 import { PALETTES } from '../radar/palette';
 import { nextIndex, previousIndex, type PlaybackSpeed } from '../radar/loop';
-import { RadarLayer } from '../radar/renderer/RadarLayer';
+import { RadarLayer, type RadarDiagnostics } from '../radar/renderer/RadarLayer';
 import type { DecodedL3, RadarMetadata } from '../radar/types';
 import type { MapObjectProperties } from '../scenes/types';
 
-interface Props { config: MapObjectProperties; editor?: boolean; }
+export interface MapCamera { center: [number, number]; zoom: number; bearing: number; pitch: number; }
+export interface RadarEditorStatus { online: boolean; status: RadarStatus; metadata?: RadarMetadata; frames: number; index: number; playing: boolean; error?: string; }
+export interface RadarMapHandle { togglePlayback(): void; previous(): void; next(): void; fitRadar(): boolean; resetCamera(): void; getCamera(): MapCamera | undefined; }
+interface Props { config: MapObjectProperties; navigation?: boolean; onCameraChange?: (camera: MapCamera) => void; onStatus?: (status: RadarEditorStatus) => void; onDiagnostic?: (diagnostics: RadarDiagnostics) => void; }
 const SITE = 'KRIW', PRODUCT = '94';
-export function RadarMapObject({ config, editor = true }: Props) {
-  const mapEl = useRef<HTMLDivElement>(null), mapRef = useRef<MlMap | null>(null), layerRef = useRef<RadarLayer | null>(null), cache = useRef(new Map<string, { decoded: DecodedL3; metadata: RadarMetadata }>());
-  const [url, setUrl] = useState(backendUrl()), [frames, setFrames] = useState<RadarFrame[]>([]), [index, setIndex] = useState(0), [metadata, setMetadata] = useState<RadarMetadata>(), [status, setStatus] = useState<RadarStatus>({ site: SITE, product: PRODUCT, status: 'offline', latest_scan: null, age_seconds: null, frame_count_60m: 0 }), [online, setOnline] = useState(false), [error, setError] = useState(''), [busy, setBusy] = useState(false), [minutes, setMinutes] = useState(30), [speed, setSpeed] = useState<PlaybackSpeed>(1), [playing, setPlaying] = useState(true), [paletteName, setPaletteName] = useState(config.palette || PALETTES[0].name);
-  const palette = PALETTES.find(item => item.name === paletteName) || PALETTES[0];
-  useEffect(() => { if (!mapEl.current) return; const map = createMap(mapEl.current); mapRef.current = map; const layer = new RadarLayer(palette); layerRef.current = layer; map.on('load', () => { map.addLayer(layer); map.jumpTo({ center: config.center || [-108.477, 43.066], zoom: config.zoom || 6 }); }); return () => map.remove(); }, []);
+const DEFAULT_CAMERA: MapCamera = { center: [-108.477, 43.066], zoom: 6, bearing: 0, pitch: 0 };
+
+export const RadarMapObject = forwardRef<RadarMapHandle, Props>(function RadarMapObject({ config, navigation = false, onCameraChange, onStatus, onDiagnostic }, ref) {
+  const mapEl = useRef<HTMLDivElement>(null), mapRef = useRef<MlMap | null>(null), layerRef = useRef<RadarLayer | null>(null), cache = useRef(new Map<string, { decoded: DecodedL3; metadata: RadarMetadata }>()), latestData = useRef<{ decoded: DecodedL3; metadata: RadarMetadata } | undefined>(undefined), configRef = useRef(config), cameraCallbackRef = useRef(onCameraChange), diagnosticCallbackRef = useRef(onDiagnostic), suppressMove = useRef(false);
+  cameraCallbackRef.current = onCameraChange;
+  diagnosticCallbackRef.current = onDiagnostic;
+  const [frames, setFrames] = useState<RadarFrame[]>([]), [index, setIndex] = useState(0), [metadata, setMetadata] = useState<RadarMetadata>(), [status, setStatus] = useState<RadarStatus>({ site: SITE, product: PRODUCT, status: 'offline', latest_scan: null, age_seconds: null, frame_count_60m: 0 }), [online, setOnline] = useState(false), [error, setError] = useState(''), [minutes, setMinutes] = useState(Number(config.loopMinutes || 30)), [speed, setSpeed] = useState<PlaybackSpeed>((config.playbackSpeed || 1) as PlaybackSpeed), [playing, setPlaying] = useState(true);
+  configRef.current = config;
+  const palette = PALETTES.find(item => item.name === config.palette) || PALETTES[0];
+  const readCamera = (): MapCamera | undefined => { const map = mapRef.current; if (!map) return undefined; const center = map.getCenter(); return { center: [center.lng, center.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }; };
+  const publishStatus = (overrides: Partial<RadarEditorStatus> = {}) => onStatus?.({ online, status, metadata, frames: frames.length, index, playing, error: error || undefined, ...overrides });
+
+  useImperativeHandle(ref, () => ({
+    togglePlayback: () => setPlaying(value => !value),
+    previous: () => setIndex(current => { if (!frames.length) return current; const next = previousIndex(current, frames.length); void display(frames[next], next); return next; }),
+    next: () => setIndex(current => { if (!frames.length) return current; const next = nextIndex(current, frames.length); void display(frames[next], next); return next; }),
+    fitRadar: () => { const bounds = layerRef.current?.getBoundingBox(); const map = mapRef.current; if (!bounds || !map) return false; map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 24, duration: 350 }); return true; },
+    resetCamera: () => { const map = mapRef.current; if (!map) return; map.jumpTo({ center: DEFAULT_CAMERA.center, zoom: DEFAULT_CAMERA.zoom, bearing: DEFAULT_CAMERA.bearing, pitch: DEFAULT_CAMERA.pitch }); },
+    getCamera: readCamera,
+  }), [frames, onStatus]);
+
+  useEffect(() => {
+    if (!mapEl.current) return;
+    const map = createMap(mapEl.current); mapRef.current = map;
+    const layer = new RadarLayer(palette, diagnostics => diagnosticCallbackRef.current?.(diagnostics)); layerRef.current = layer;
+    const handleMove = () => { if (!suppressMove.current) { const camera = readCamera(); if (camera) cameraCallbackRef.current?.(camera); } };
+    map.on('move', handleMove);
+    map.on('load', () => { map.addLayer(layer); const c = configRef.current; map.jumpTo({ center: c.center || DEFAULT_CAMERA.center, zoom: c.zoom || DEFAULT_CAMERA.zoom, bearing: c.bearing || 0, pitch: c.pitch || 0 }); if (latestData.current) layer.setData(latestData.current.decoded, latestData.current.metadata); applyNavigation(); });
+    const observer = new ResizeObserver(() => map.resize()); observer.observe(mapEl.current);
+    return () => { observer.disconnect(); map.off('move', handleMove); map.remove(); mapRef.current = null; layerRef.current = null; };
+  }, []);
+
+  function applyNavigation() { const map = mapRef.current; if (!map) return; if (navigation) { map.dragPan.enable(); map.scrollZoom.enable(); map.touchZoomRotate.enable(); map.doubleClickZoom.enable(); } else { map.dragPan.disable(); map.scrollZoom.disable(); map.touchZoomRotate.disable(); map.doubleClickZoom.disable(); } }
+  useEffect(() => { applyNavigation(); }, [navigation]);
+  useEffect(() => { const map = mapRef.current; if (!map || !map.isStyleLoaded()) return; const current = readCamera(); const target = { center: config.center || DEFAULT_CAMERA.center, zoom: config.zoom || DEFAULT_CAMERA.zoom, bearing: config.bearing || 0, pitch: config.pitch || 0 }; if (!current || Math.abs(current.center[0] - target.center[0]) > 0.00001 || Math.abs(current.center[1] - target.center[1]) > 0.00001 || Math.abs(current.zoom - target.zoom) > 0.001 || Math.abs(current.bearing - target.bearing) > 0.01 || Math.abs(current.pitch - target.pitch) > 0.01) { suppressMove.current = true; map.jumpTo(target); suppressMove.current = false; } }, [config.center, config.zoom, config.bearing, config.pitch]);
   useEffect(() => { layerRef.current?.setPalette(palette); layerRef.current?.setOpacity(config.opacity ?? 0.85); layerRef.current?.setVisible(config.radar !== false); }, [palette, config.opacity, config.radar]);
-  async function display(frame: RadarFrame, position: number) { if (!frame) return; try { const item = cache.current.get(frame.file_id) || { decoded: decodeL3Z(await radarPayload(frame.file_id)), metadata: await radarMetadata(frame.file_id) }; cache.current.set(frame.file_id, item); setMetadata(item.metadata); setIndex(position); layerRef.current?.setData(item.decoded, item.metadata); mapRef.current?.flyTo({ center: [item.metadata.longitude, item.metadata.latitude], zoom: config.zoom || 6, duration: 0 }); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to decode radar frame'); } }
-  async function refresh() { setBusy(true); setError(''); try { if (!await health()) throw new Error('Backend offline'); setOnline(true); setStatus(await radarStatus(SITE, PRODUCT)); const list = await radarFrames(minutes, SITE, PRODUCT); setFrames(list); if (list.length) await display(list[list.length - 1], list.length - 1); } catch (cause) { setOnline(false); setError(cause instanceof Error ? cause.message : 'Unable to load radar'); } finally { setBusy(false); } }
+  useEffect(() => { const nextMinutes = Number(config.loopMinutes || 30); if (nextMinutes !== minutes) setMinutes(nextMinutes); }, [config.loopMinutes]);
+  useEffect(() => { const nextSpeed = (config.playbackSpeed || 1) as PlaybackSpeed; if (nextSpeed !== speed) setSpeed(nextSpeed); }, [config.playbackSpeed]);
+  async function display(frame: RadarFrame, position: number) { if (!frame) return; try { const item = cache.current.get(frame.file_id) || { decoded: decodeL3Z(await radarPayload(frame.file_id)), metadata: await radarMetadata(frame.file_id) }; cache.current.set(frame.file_id, item); latestData.current = item; setMetadata(item.metadata); setIndex(position); layerRef.current?.setData(item.decoded, item.metadata); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to decode radar frame'); } }
+  async function refresh() { setError(''); try { if (!await health()) throw new Error('Backend offline'); setOnline(true); const nextStatus = await radarStatus(SITE, PRODUCT); setStatus(nextStatus); const list = await radarFrames(minutes, SITE, PRODUCT); setFrames(list); if (list.length) await display(list[list.length - 1], list.length - 1); } catch (cause) { setOnline(false); setError(cause instanceof Error ? cause.message : 'Unable to load radar'); } }
   useEffect(() => { void refresh(); }, [minutes]);
+  useEffect(() => { const handler = () => void refresh(); window.addEventListener('zasnet:backend-change', handler); return () => window.removeEventListener('zasnet:backend-change', handler); }, [minutes]);
   useEffect(() => { const timer = setInterval(() => { if (playing && frames.length > 1) setIndex(current => { const next = nextIndex(current, frames.length); void display(frames[next], next); return next; }); }, 5000 / speed); return () => clearInterval(timer); }, [playing, frames, speed]);
-  function saveUrl() { try { const normalized = setBackendUrl(url); setUrl(normalized); void refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Invalid backend URL'); } }
-  return <div className="radar-map-object"><div ref={mapEl} className="radar-map-canvas" />{editor && <div className="radar-map-status"><span className={online ? 'status-live' : ''}>● {online ? 'LIVE' : 'OFFLINE'}</span>{metadata && <span>{metadata.radar_site} · {metadata.product_code}</span>}<span>{frames.length ? `${index + 1}/${frames.length}` : 'No frames'}</span>{error && <span className="status-error">{error}</span>}</div>}{editor && <div className="radar-map-controls"><input aria-label="Backend URL" value={url} onChange={event => setUrl(event.target.value)} onBlur={saveUrl} /><button onClick={() => void refresh()} disabled={busy}>{busy ? 'Loading…' : 'Reload'}</button><button onClick={() => setPlaying(value => !value)}>{playing ? 'Pause' : 'Play'}</button><button onClick={() => { if (frames.length) { const next = previousIndex(index, frames.length); void display(frames[next], next); } }}>‹</button><button onClick={() => { if (frames.length) { const next = nextIndex(index, frames.length); void display(frames[next], next); } }}>›</button><select value={paletteName} onChange={event => setPaletteName(event.target.value)}>{PALETTES.map(item => <option key={item.name}>{item.name}</option>)}</select></div>}</div>;
-}
+  useEffect(() => { publishStatus(); }, [online, status, metadata, frames, index, playing, error]);
+  // The renderer deliberately contains no authoring controls or status overlays. Those belong to editor chrome.
+  return <div className={`radar-map-object ${navigation ? 'map-camera-active' : ''}`} onPointerDown={event => navigation && event.stopPropagation()} onWheel={event => navigation && event.stopPropagation()}><div ref={mapEl} className="radar-map-canvas" aria-label="MapLibre radar map" /></div>;
+});

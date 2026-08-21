@@ -1,0 +1,8 @@
+.editor-toolbar{position:relative}
+.preferences-popover{position:absolute;right:14px;top:49px;width:285px;z-index:20;padding:13px;background:#1b2a2f;border:1px solid #5a7d85;border-radius:4px;box-shadow:0 12px 28px #000b}
+.preferences-title{font-size:10px;letter-spacing:.14em;color:#a9bdc1;font-weight:800;margin-bottom:10px}
+.preferences-popover p{font-size:10px;color:#72878c;line-height:1.4}
+.preferences-popover>div:last-child{display:flex;align-items:center;gap:6px}
+.preferences-popover span{font-size:10px;color:#81c6a1;margin-left:auto}
+.diagnostics-drawer{position:absolute;left:14px;right:14px;bottom:95px;z-index:8;padding:9px 11px;background:#16272ce8;border:1px solid #4c737b;border-radius:3px;box-shadow:0 8px 20px #0008;color:#c7d9dc;font-size:10px}
+.diagnostics-drawer>div:first-child{display:flex;justify-content:space-between;color:#9fc1c6;letter-spacing:.08em}.diagnostics-drawer>div:first-child span{color:#718b91;letter-spacing:0}.diagnostic-grid{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;color:#9db3b8}.diagnostic-empty{display:block;margin-top:7px;color:#71868c}

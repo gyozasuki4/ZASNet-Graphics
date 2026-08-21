@@ -1,6 +1,14 @@
-import { createScene, type Scene } from './types';
+import { createScene, createSceneObject, type Scene, type SceneObject } from './types';
 export const SCENE_STORAGE_KEY = 'zasnet.scenes.v1';
 export function serializeScenes(scenes: Scene[]) { return JSON.stringify(scenes); }
-export function deserializeScenes(raw: string | null): Scene[] { if (!raw) return [createScene()]; try { const parsed = JSON.parse(raw) as Scene[]; return Array.isArray(parsed) && parsed.length ? parsed : [createScene()]; } catch { return [createScene()]; } }
+function hydrateObject(value: SceneObject): SceneObject {
+  const defaults = createSceneObject(value.type);
+  return { ...defaults, ...value, properties: { ...defaults.properties, ...(value.properties || {}) } };
+}
+function hydrateScene(value: Scene): Scene {
+  const now = new Date().toISOString();
+  return { ...createScene(value.name || 'Scene'), ...value, aspectRatio: value.aspectRatio || '16:9', objects: Array.isArray(value.objects) ? value.objects.map(hydrateObject) : [], metadata: value.metadata || {}, createdAt: value.createdAt || now, modifiedAt: value.modifiedAt || now };
+}
+export function deserializeScenes(raw: string | null): Scene[] { if (!raw) return [createScene()]; try { const parsed = JSON.parse(raw) as Scene[]; return Array.isArray(parsed) && parsed.length ? parsed.map(hydrateScene) : [createScene()]; } catch { return [createScene()]; } }
 export function loadScenes(storage: Pick<Storage, 'getItem'> = localStorage) { return deserializeScenes(storage.getItem(SCENE_STORAGE_KEY)); }
 export function saveScenes(scenes: Scene[], storage: Pick<Storage, 'setItem'> = localStorage) { storage.setItem(SCENE_STORAGE_KEY, serializeScenes(scenes)); }
