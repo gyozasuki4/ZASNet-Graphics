@@ -12,8 +12,8 @@ function rasterStyle(background: string, saturation: number, opacity: number): S
       { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': saturation, 'raster-contrast': 0.24, 'raster-brightness-min': 0.12, 'raster-brightness-max': 0.58, 'raster-opacity': opacity } },
       { id: 'county-boundaries', type: 'line', source: 'zasnetCounties', paint: { 'line-color': '#9bb5bd', 'line-width': 1, 'line-opacity': .55 } },
       { id: 'state-boundaries', type: 'line', source: 'zasnetStates', paint: { 'line-color': '#dcecf0', 'line-width': 2.5, 'line-opacity': .9 } },
-      { id: 'roads', type: 'line', source: 'zasnetRoads', minzoom: 4, paint: { 'line-color': '#d39b61', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, .5, 8, 1.8], 'line-opacity': .6 } },
-      { id: 'city-labels', type: 'symbol', source: 'zasnetCities', minzoom: 4, layout: { 'text-field': ['upcase', ['get', 'name']], 'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 8, 14], 'text-allow-overlap': false }, paint: { 'text-color': '#f2f7f8', 'text-halo-color': '#132027', 'text-halo-width': 1.5, 'text-opacity': .95 } },
+      { id: 'roads', type: 'line', source: 'zasnetRoads', minzoom: 4, filter: ['all', ['==', ['get', 'sov_a3'], 'USA'], ['in', ['get', 'type'], ['literal', ['Major Highway', 'Secondary Highway', 'Road']]]], paint: { 'line-color': '#d39b61', 'line-width': ['interpolate', ['linear'], ['zoom'], 4, .5, 8, 1.8], 'line-opacity': .6 } },
+      { id: 'city-labels', type: 'symbol', source: 'zasnetCities', minzoom: 4, filter: ['==', ['get', 'adm0_a3'], 'USA'], layout: { 'text-field': ['upcase', ['get', 'name']], 'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 8, 14], 'text-allow-overlap': false, 'text-padding': 3 }, paint: { 'text-color': '#f2f7f8', 'text-halo-color': '#132027', 'text-halo-width': 1.5, 'text-opacity': .95 } },
     ],
   };
 }
