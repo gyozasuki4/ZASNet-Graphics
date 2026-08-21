@@ -17,7 +17,7 @@ import { SceneTimeline } from './SceneTimeline';
 
 type BottomTab = 'timeline' | 'layers' | 'data';
 type MenuName = 'File' | 'Edit' | 'View' | 'Scene' | 'Insert' | 'Broadcast';
-const DEFAULT_LAYOUT = { left: 288, right: 304, bottom: 104 };
+const DEFAULT_LAYOUT = { left: 288, right: 304, bottom: 86 };
 
 export default function Editor() {
   const [scenes, setScenes] = useState<Scene[]>(() => loadScenes());
