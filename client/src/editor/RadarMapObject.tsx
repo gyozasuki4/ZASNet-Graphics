@@ -12,7 +12,7 @@ import type { MapObjectProperties } from '../scenes/types';
 
 export interface MapCamera { center: [number, number]; zoom: number; bearing: number; pitch: number; }
 export interface RadarEditorStatus { online: boolean; status: RadarStatus; metadata?: RadarMetadata; frames: number; index: number; playing: boolean; error?: string; }
-export interface RadarMapHandle { togglePlayback(): void; previous(): void; next(): void; fitRadar(): boolean; resetCamera(): void; getCamera(): MapCamera | undefined; }
+export interface RadarMapHandle { togglePlayback(): void; previous(): void; next(): void; seek(position: number): void; fitRadar(): boolean; resetCamera(): void; getCamera(): MapCamera | undefined; }
 interface Props { config: MapObjectProperties; navigation?: boolean; onCameraChange?: (camera: MapCamera) => void; onStatus?: (status: RadarEditorStatus) => void; onDiagnostic?: (diagnostics: RadarDiagnostics) => void; }
 const SITE = 'KRIW', PRODUCT = '94';
 const DEFAULT_CAMERA: MapCamera = { center: [-108.477, 43.066], zoom: 6, bearing: 0, pitch: 0 };
@@ -31,6 +31,7 @@ export const RadarMapObject = forwardRef<RadarMapHandle, Props>(function RadarMa
     togglePlayback: () => setPlaying(value => !value),
     previous: () => setIndex(current => { if (!frames.length) return current; const next = previousIndex(current, frames.length); void display(frames[next], next); return next; }),
     next: () => setIndex(current => { if (!frames.length) return current; const next = nextIndex(current, frames.length); void display(frames[next], next); return next; }),
+    seek: (position: number) => { if (!frames.length) return; const next = Math.max(0, Math.min(frames.length - 1, Math.round(position))); void display(frames[next], next); },
     fitRadar: () => { const bounds = layerRef.current?.getBoundingBox(); const map = mapRef.current; if (!bounds || !map) return false; map.fitBounds([[bounds[0], bounds[1]], [bounds[2], bounds[3]]], { padding: 24, duration: 350 }); return true; },
     resetCamera: () => { const map = mapRef.current; if (!map) return; map.jumpTo({ center: DEFAULT_CAMERA.center, zoom: DEFAULT_CAMERA.zoom, bearing: DEFAULT_CAMERA.bearing, pitch: DEFAULT_CAMERA.pitch }); },
     getCamera: readCamera,

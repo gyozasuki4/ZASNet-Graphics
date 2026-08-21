@@ -11,6 +11,7 @@ describe('Step 5.5 editor interaction', () => {
     expect(isPreviewShortcut({ key: 'p', metaKey: true, ctrlKey: false, shiftKey: true })).toBe(true);
     expect(isPreviewShortcut({ key: 'p', metaKey: false, ctrlKey: true, shiftKey: true })).toBe(true);
     expect(editorChromeVisible('preview')).toBe(false);
+    expect(editorChromeVisible('program')).toBe(false);
   });
   it('keeps camera state separate from scene object transform', () => {
     const camera = { center: [-108.2, 43.3] as [number, number], zoom: 7.2, bearing: 12, pitch: 4 };
