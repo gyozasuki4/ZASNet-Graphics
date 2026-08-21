@@ -16,6 +16,7 @@ export interface MapObjectProperties {
   stylePreset: string; renderMode?: 'Raw' | 'Smooth' | 'Broadcast';
   savedViews?: Array<{ name: string; center: [number, number]; zoom: number; bearing: number; pitch: number }>;
   layerStyles?: Partial<Record<'states' | 'counties' | 'roads' | 'labels', { color: string; width: number; opacity: number; textSize?: number; haloColor?: string }>>;
+  highlightCounty?: string; highlightCountyColor?: string; highlightCountyOpacity?: number;
 }
 export interface TextObjectProperties { text: string; fontFamily: string; fontSize: number; fontWeight: number; italic: boolean; align: 'left' | 'center' | 'right'; color: string; outline: string; outlineWidth: number; shadow: boolean; }
 export interface ShapeObjectProperties { fill: string; border: string; borderWidth: number; radius: number; }
