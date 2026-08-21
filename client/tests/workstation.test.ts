@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { displayToLogical, logicalToDisplay } from '../src/editor/coordinates';
 import { thumbnailDescriptor } from '../src/editor/SceneThumbnail';
-import { addObject, groupObjects, reorderObject, updateObject } from '../src/scenes/sceneStore';
+import { addObject, createInsertedObject, fitObjectToFrame, groupObjects, reorderObject, setObjectAsBackground, updateObject, updateObjectRespectingLock } from '../src/scenes/sceneStore';
 import { deserializeScenes, serializeScenes } from '../src/scenes/serialization';
 import { createScene, createSceneObject, type Scene } from '../src/scenes/types';
+import { mapStyleForPreset, mapStylePresets } from '../src/map/styles';
 
 function emptyScene(): Scene { return { ...createScene(), objects: [] }; }
 
@@ -70,5 +71,54 @@ describe('Step 5.75 workstation model', () => {
     expect(logicalToDisplay(960, 960)).toBe(480);
     expect(displayToLogical(480, 960)).toBe(960);
     expect(logicalToDisplay(100, 1440)).toBe(75);
+  });
+
+  it('creates a full-frame locked primary radar map', () => {
+    const scene = createScene();
+    const map = scene.objects.find(object => object.type === 'map')!;
+    expect(map).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080, rotation: 0, locked: true, role: 'background', z: 0 });
+    expect(map.properties).toMatchObject({ center: [-108.477, 43.066], stylePreset: 'broadcast-gray' });
+  });
+
+  it('inserts a full-frame map only when the scene has no map/background', () => {
+    const empty = emptyScene();
+    const primary = createInsertedObject(empty, 'map');
+    expect(primary).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080, locked: true, role: 'background' });
+    const existing = { ...empty, objects: [createSceneObject('map')] };
+    const secondary = createInsertedObject(existing, 'map');
+    expect(secondary).toMatchObject({ x: 120, y: 120, width: 480, height: 240, locked: false });
+  });
+
+  it('protects locked transforms while allowing camera/style properties', () => {
+    const scene = createScene(); const map = scene.objects.find(object => object.type === 'map')!;
+    const moved = updateObjectRespectingLock(scene, map.id, { x: 200, y: 200, width: 400, height: 300, rotation: 12, properties: { zoom: 8, stylePreset: 'classic' } });
+    const result = moved.objects.find(object => object.id === map.id)!;
+    expect(result).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080, rotation: 0, locked: true });
+    expect(result.properties).toMatchObject({ zoom: 8, stylePreset: 'classic' });
+    const unlocked = updateObjectRespectingLock({ ...scene, objects: scene.objects.map(object => object.id === map.id ? { ...object, locked: false } : object) }, map.id, { x: 200 });
+    expect(unlocked.objects.find(object => object.id === map.id)?.x).toBe(200);
+  });
+
+  it('supports full-frame and background actions without changing map camera', () => {
+    let scene = createScene(); const map = scene.objects.find(object => object.type === 'map')!;
+    scene = updateObject(scene, map.id, { x: 300, y: 200, width: 800, height: 600, locked: false, properties: { center: [-110, 44], zoom: 7 } });
+    scene = fitObjectToFrame(scene, map.id);
+    expect(scene.objects.find(object => object.id === map.id)).toMatchObject({ x: 0, y: 0, width: 1920, height: 1080, rotation: 0, locked: false });
+    expect(scene.objects.find(object => object.id === map.id)?.properties).toMatchObject({ center: [-110, 44], zoom: 7 });
+    scene = setObjectAsBackground(scene, map.id);
+    expect(scene.objects.find(object => object.id === map.id)).toMatchObject({ role: 'background', locked: true });
+  });
+
+  it('exposes named map style presets for presentation settings', () => {
+    expect(mapStylePresets.map(preset => preset.id)).toEqual(['broadcast-gray', 'classic', 'broadcast-satellite']);
+    expect(mapStyleForPreset('classic')).toBe(mapStylePresets[1].style);
+    expect(mapStyleForPreset('missing')).toBe(mapStylePresets[0].style);
+  });
+
+  it('migrates a saved legacy Local Radar map to the locked background convention', () => {
+    const scene = createScene();
+    const legacy = JSON.parse(serializeScenes([scene])) as Scene[];
+    const loaded = deserializeScenes(JSON.stringify([{ ...legacy[0], objects: legacy[0].objects.map(object => ({ ...object, role: undefined, locked: false })) }]))[0];
+    expect(loaded.objects.find(object => object.type === 'map')).toMatchObject({ role: 'background', locked: true, z: 0 });
   });
 });

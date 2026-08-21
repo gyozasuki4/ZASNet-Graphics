@@ -3,3 +3,10 @@
 .radar-map-object{width:100%;height:100%;position:relative;background:#1b292e}
 .radar-map-canvas{position:absolute;inset:0}
 .clean-output .maplibregl-control-container{display:none}
+.scene-stage{width:min(100%,177.7778%);height:auto;aspect-ratio:16/9}
+.program-mode .scene-stage{width:100vw;height:100vh;aspect-ratio:auto}
+.bottom-workspace{min-height:74px}
+.lock-state{display:flex;justify-content:space-between;align-items:center;margin:0 9px 5px;padding:4px 6px;border:1px solid #3c555c;background:#17262b;color:#a8bdc1;font-size:9px}
+.lock-state.locked{border-color:#8b6d4c;color:#f0c98b;background:#2a2922}.lock-state small{font-size:8px;color:#7f969c;letter-spacing:.1em}
+.inspector-panel input:disabled{opacity:.45;cursor:not-allowed;background:#0e171a;color:#73868a}
+.layers-panel{min-height:0}.layer-select{gap:5px}.layer-name{min-width:0;overflow:hidden;text-overflow:ellipsis}.layer-role{font-size:7px;color:#82aeb5;letter-spacing:.08em}

@@ -7,7 +7,10 @@ function hydrateObject(value: SceneObject): SceneObject {
 }
 function hydrateScene(value: Scene): Scene {
   const now = new Date().toISOString();
-  return { ...createScene(value.name || 'Scene'), ...value, aspectRatio: value.aspectRatio || '16:9', objects: Array.isArray(value.objects) ? value.objects.map(hydrateObject) : [], metadata: value.metadata || {}, createdAt: value.createdAt || now, modifiedAt: value.modifiedAt || now };
+  const objects = Array.isArray(value.objects) ? value.objects.map(hydrateObject) : [];
+  const primaryMap = objects.find(object => object.type === 'map' && (value.name === 'Local Radar' || value.metadata?.product === 'radar'));
+  const migratedObjects = primaryMap ? objects.map(object => object.id === primaryMap.id ? { ...object, role: 'background' as const, locked: true, z: 0 } : object) : objects;
+  return { ...createScene(value.name || 'Scene'), ...value, aspectRatio: value.aspectRatio || '16:9', objects: migratedObjects, metadata: value.metadata || {}, createdAt: value.createdAt || now, modifiedAt: value.modifiedAt || now };
 }
 export function deserializeScenes(raw: string | null): Scene[] { if (!raw) return [createScene()]; try { const parsed = JSON.parse(raw) as Scene[]; return Array.isArray(parsed) && parsed.length ? parsed.map(hydrateScene) : [createScene()]; } catch { return [createScene()]; } }
 export function loadScenes(storage: Pick<Storage, 'getItem'> = localStorage) { return deserializeScenes(storage.getItem(SCENE_STORAGE_KEY)); }
